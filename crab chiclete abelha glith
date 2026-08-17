@@ -1,0 +1,627 @@
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Fontes padronizadas
+local MAIN_FONT = Enum.Font.GothamBold
+local MEDIUM_FONT = Enum.Font.GothamMedium
+local CODE_FONT = Enum.Font.Code
+
+-- Função para tornar elementos arrastáveis
+local function makeDraggable(frame, onClickCallback)
+	local dragging = false
+	local hasDragged = false
+	local dragInput, dragStart, startPos
+
+	local function update(input)
+		local delta = input.Position - dragStart
+		if delta.Magnitude > 5 then
+			hasDragged = true
+		end
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			hasDragged = false
+			dragStart = input.Position
+			startPos = frame.Position
+
+			local connection
+			connection = input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+					connection:Disconnect()
+					
+					if not hasDragged and onClickCallback then
+						onClickCallback()
+					end
+				end
+			end)
+		end
+	end)
+
+	frame.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			update(input)
+		end
+	end)
+end
+
+-- 1. Tela Principal (ScreenGui)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "LarpScriptGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+---------------------------------------------------------
+-- ETAPA 1: CARD DE CARREGAMENTO (INICIAL)
+---------------------------------------------------------
+local loadingFrame = Instance.new("Frame")
+loadingFrame.Name = "LoadingFrame"
+loadingFrame.Size = UDim2.new(0, 350, 0, 135)
+loadingFrame.Position = UDim2.new(0.5, -175, 0.5, -67)
+loadingFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+loadingFrame.BorderSizePixel = 0
+loadingFrame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 14)
+frameCorner.Parent = loadingFrame
+
+-- Foto de Perfil
+local profileImage = Instance.new("ImageLabel")
+profileImage.Size = UDim2.new(0, 45, 0, 45)
+profileImage.Position = UDim2.new(0, 15, 0, 15)
+profileImage.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+profileImage.BorderSizePixel = 0
+profileImage.Image = "rbxassetid://136487423334033"
+profileImage.Parent = loadingFrame
+
+local imgCorner = Instance.new("UICorner")
+imgCorner.CornerRadius = UDim.new(1, 0)
+imgCorner.Parent = profileImage
+
+-- Texto do Canal
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(0, 250, 0, 45)
+titleLabel.Position = UDim2.new(0, 70, 0, 15)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Youtube: LarpOnTop"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 16
+titleLabel.Font = MAIN_FONT
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = loadingFrame
+
+-- Fundo da Barra
+local barBg = Instance.new("Frame")
+barBg.Size = UDim2.new(0, 320, 0, 24)
+barBg.Position = UDim2.new(0, 15, 0, 65)
+barBg.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+barBg.BorderSizePixel = 0
+barBg.Parent = loadingFrame
+
+local barBgCorner = Instance.new("UICorner")
+barBgCorner.CornerRadius = UDim.new(0, 7)
+barBgCorner.Parent = barBg
+
+-- Preenchimento da Barra (Roxa)
+local barFill = Instance.new("Frame")
+barFill.Size = UDim2.new(0, 0, 1, 0)
+barFill.BackgroundColor3 = Color3.fromRGB(140, 40, 230)
+barFill.BorderSizePixel = 0
+barFill.Parent = barBg
+
+local barFillCorner = Instance.new("UICorner")
+barFillCorner.CornerRadius = UDim.new(0, 7)
+barFillCorner.Parent = barFill
+
+-- Texto Inferior
+local subLabel = Instance.new("TextLabel")
+subLabel.Size = UDim2.new(0, 320, 0, 25)
+subLabel.Position = UDim2.new(0, 15, 0, 98)
+subLabel.BackgroundTransparency = 1
+subLabel.Text = "Subscribe To LarpOnTop"
+subLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+subLabel.TextSize = 14
+subLabel.Font = MAIN_FONT
+subLabel.Parent = loadingFrame
+
+---------------------------------------------------------
+-- ETAPA 2: PAINEL ADMIN COMMAND SCRIPT
+---------------------------------------------------------
+local adminFrame = Instance.new("Frame")
+adminFrame.Name = "AdminFrame"
+adminFrame.Size = UDim2.new(0, 290, 0, 330)
+adminFrame.Position = UDim2.new(0.5, -145, 0.5, -165)
+adminFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+adminFrame.BorderSizePixel = 0
+adminFrame.Visible = false
+adminFrame.Active = true
+adminFrame.Parent = screenGui
+
+local adminCorner = Instance.new("UICorner")
+adminCorner.CornerRadius = UDim.new(0, 14)
+adminCorner.Parent = adminFrame
+
+makeDraggable(adminFrame, nil)
+
+---------------------------------------------------------
+-- ETAPA 3: BOTÃO FLUTUANTE DE ABRIR/FECHAR
+---------------------------------------------------------
+local toggleButton = Instance.new("ImageButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0, 50, 0, 50)
+toggleButton.Position = UDim2.new(0, 20, 0.5, -25)
+toggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+toggleButton.BorderSizePixel = 0
+toggleButton.Image = "rbxassetid://136487423334033"
+toggleButton.Visible = false
+toggleButton.Active = true
+toggleButton.Parent = screenGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 12)
+toggleCorner.Parent = toggleButton
+
+local toggleStroke = Instance.new("UIStroke")
+toggleStroke.Color = Color3.fromRGB(255, 255, 255)
+toggleStroke.Thickness = 1.5
+toggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+toggleStroke.Parent = toggleButton
+
+makeDraggable(toggleButton, function()
+	adminFrame.Visible = not adminFrame.Visible
+end)
+
+-- Título Principal
+local adminTitle = Instance.new("TextLabel")
+adminTitle.Size = UDim2.new(1, 0, 0, 24)
+adminTitle.Position = UDim2.new(0, 0, 0, 8)
+adminTitle.BackgroundTransparency = 1
+adminTitle.Text = "Admin Command Script"
+adminTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+adminTitle.TextSize = 16
+adminTitle.Font = MAIN_FONT
+adminTitle.Parent = adminFrame
+
+-- Subtítulo
+local adminSub = Instance.new("TextLabel")
+adminSub.Size = UDim2.new(1, 0, 0, 16)
+adminSub.Position = UDim2.new(0, 0, 0, 28)
+adminSub.BackgroundTransparency = 1
+adminSub.Text = "Made By LarpOnTop"
+adminSub.TextColor3 = Color3.fromRGB(120, 120, 120)
+adminSub.TextSize = 11
+adminSub.Font = Enum.Font.Gotham
+adminSub.Parent = adminFrame
+
+-- Container para a Grade de Botões
+local gridFrame = Instance.new("Frame")
+gridFrame.Size = UDim2.new(1, -16, 1, -54)
+gridFrame.Position = UDim2.new(0, 8, 0, 50)
+gridFrame.BackgroundTransparency = 1
+gridFrame.Parent = adminFrame
+
+local uiGrid = Instance.new("UIGridLayout")
+uiGrid.CellSize = UDim2.new(0, 132, 0, 38)
+uiGrid.CellPadding = UDim2.new(0, 8, 0, 6)
+uiGrid.SortOrder = Enum.SortOrder.LayoutOrder
+uiGrid.Parent = gridFrame
+
+---------------------------------------------------------
+-- ETAPA 4: JANELA BRAINROT SPAWNER
+---------------------------------------------------------
+local spawnerFrame = Instance.new("Frame")
+spawnerFrame.Name = "BrainrotSpawnerFrame"
+spawnerFrame.Size = UDim2.new(0, 305, 0, 176)
+spawnerFrame.Position = UDim2.new(0.5, -152, 0.5, -88)
+spawnerFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+spawnerFrame.BorderSizePixel = 0
+spawnerFrame.Visible = false
+spawnerFrame.Active = true
+spawnerFrame.Parent = screenGui
+
+local spawnerCorner = Instance.new("UICorner")
+spawnerCorner.CornerRadius = UDim.new(0, 14)
+spawnerCorner.Parent = spawnerFrame
+
+makeDraggable(spawnerFrame, nil)
+
+-- Título Brainrot Spawner
+local spawnerTitle = Instance.new("TextLabel")
+spawnerTitle.Size = UDim2.new(1, -50, 0, 26)
+spawnerTitle.Position = UDim2.new(0, 12, 0, 8)
+spawnerTitle.BackgroundTransparency = 1
+spawnerTitle.Text = "Brainrot Spawner"
+spawnerTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+spawnerTitle.TextSize = 16
+spawnerTitle.Font = MEDIUM_FONT
+spawnerTitle.TextXAlignment = Enum.TextXAlignment.Center
+spawnerTitle.Parent = spawnerFrame
+
+-- Botão Fechar (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -38, 0, 8)
+closeBtn.BackgroundColor3 = Color3.fromRGB(95, 35, 40)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(240, 90, 95)
+closeBtn.TextSize = 14
+closeBtn.Font = MAIN_FONT
+closeBtn.Parent = spawnerFrame
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 9)
+closeCorner.Parent = closeBtn
+
+local closeStroke = Instance.new("UIStroke")
+closeStroke.Color = Color3.fromRGB(150, 50, 55)
+closeStroke.Thickness = 1.2
+closeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+closeStroke.Parent = closeBtn
+
+closeBtn.MouseButton1Click:Connect(function()
+	spawnerFrame.Visible = false
+end)
+
+-- Subtítulo Fixo / Dinâmico
+local spawnerSub = Instance.new("TextLabel")
+spawnerSub.Size = UDim2.new(1, -24, 0, 16)
+spawnerSub.Position = UDim2.new(0, 12, 0, 33)
+spawnerSub.BackgroundTransparency = 1
+spawnerSub.Text = "Made By LarpOnTop"
+spawnerSub.TextColor3 = Color3.fromRGB(130, 135, 145)
+spawnerSub.TextSize = 9.5
+spawnerSub.Font = CODE_FONT
+spawnerSub.TextXAlignment = Enum.TextXAlignment.Left
+spawnerSub.Parent = spawnerFrame
+
+-- Campo de Texto (Brainrot name)
+local spawnerInput = Instance.new("TextBox")
+spawnerInput.Size = UDim2.new(1, -24, 0, 32)
+spawnerInput.Position = UDim2.new(0, 12, 0, 52)
+spawnerInput.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+spawnerInput.PlaceholderText = "Brainrot name or alias"
+spawnerInput.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
+spawnerInput.Text = ""
+spawnerInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+spawnerInput.TextSize = 12
+spawnerInput.Font = MAIN_FONT
+spawnerInput.ClearTextOnFocus = false
+spawnerInput.Parent = spawnerFrame
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 8)
+inputCorner.Parent = spawnerInput
+
+local inputStroke = Instance.new("UIStroke")
+inputStroke.Color = Color3.fromRGB(60, 60, 70)
+inputStroke.Thickness = 1
+inputStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+inputStroke.Parent = spawnerInput
+
+-- Campo de Texto (Mutação)
+local normalInput = Instance.new("TextBox")
+normalInput.Size = UDim2.new(0, 88, 0, 32)
+normalInput.Position = UDim2.new(0, 12, 0, 92)
+normalInput.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+normalInput.PlaceholderText = "Normal"
+normalInput.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
+normalInput.Text = "Normal"
+normalInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+normalInput.TextSize = 12
+normalInput.Font = MAIN_FONT
+normalInput.ClearTextOnFocus = false
+normalInput.Parent = spawnerFrame
+
+local normalCorner = Instance.new("UICorner")
+normalCorner.CornerRadius = UDim.new(0, 8)
+normalCorner.Parent = normalInput
+
+local normalStroke = Instance.new("UIStroke")
+normalStroke.Color = Color3.fromRGB(60, 60, 70)
+normalStroke.Thickness = 1
+normalStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+normalStroke.Parent = normalInput
+
+local loopBtn = Instance.new("TextButton")
+loopBtn.Size = UDim2.new(0, 88, 0, 32)
+loopBtn.Position = UDim2.new(0, 108, 0, 92)
+loopBtn.BackgroundColor3 = Color3.fromRGB(38, 45, 65)
+loopBtn.Text = "Loop: OFF"
+loopBtn.TextColor3 = Color3.fromRGB(210, 215, 225)
+loopBtn.TextSize = 12
+loopBtn.Font = MAIN_FONT
+loopBtn.Parent = spawnerFrame
+
+local loopCorner = Instance.new("UICorner")
+loopCorner.CornerRadius = UDim.new(0, 8)
+loopCorner.Parent = loopBtn
+
+local loopStroke = Instance.new("UIStroke")
+loopStroke.Color = Color3.fromRGB(60, 70, 95)
+loopStroke.Thickness = 1
+loopStroke.Parent = loopBtn
+
+local spawnBtn = Instance.new("TextButton")
+spawnBtn.Size = UDim2.new(0, 89, 0, 32)
+spawnBtn.Position = UDim2.new(0, 204, 0, 92)
+spawnBtn.BackgroundColor3 = Color3.fromRGB(90, 100, 245)
+spawnBtn.Text = "SPAWN"
+spawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+spawnBtn.TextSize = 12
+spawnBtn.Font = MAIN_FONT
+spawnBtn.Parent = spawnerFrame
+
+local spawnCorner = Instance.new("UICorner")
+spawnCorner.CornerRadius = UDim.new(0, 8)
+spawnCorner.Parent = spawnBtn
+
+-- Campo de Texto ("Traits")
+local traitsInput = Instance.new("TextBox")
+traitsInput.Size = UDim2.new(1, -24, 0, 32)
+traitsInput.Position = UDim2.new(0, 12, 0, 130)
+traitsInput.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+traitsInput.PlaceholderText = "Traits (0)"
+traitsInput.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
+traitsInput.Text = "Traits (0)"
+traitsInput.TextColor3 = Color3.fromRGB(210, 215, 225)
+traitsInput.TextSize = 12
+traitsInput.Font = MAIN_FONT
+traitsInput.ClearTextOnFocus = false
+traitsInput.Parent = spawnerFrame
+
+local traitsCorner = Instance.new("UICorner")
+traitsCorner.CornerRadius = UDim.new(0, 8)
+traitsCorner.Parent = traitsInput
+
+local traitsStroke = Instance.new("UIStroke")
+traitsStroke.Color = Color3.fromRGB(60, 60, 70)
+traitsStroke.Thickness = 1
+traitsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+traitsStroke.Parent = traitsInput
+
+---------------------------------------------------------
+-- LÓGICA DE VALIDAÇÃO (DISPARADA APENAS NO BOTÃO SPAWN)
+---------------------------------------------------------
+local isLoopOn = false
+
+-- Whitelist dos Brainrots
+local validBrainrots = {
+	["strawberry elephant"] = true,
+	["meowl"] = true,
+	["dragon cannelloni"] = true,
+	["headless horseman"] = true,
+	["jonh pork"] = true,
+	["tralaledon"] = true,
+	["eviledon"] = true,
+	["capitano moby"] = true,
+	["skibidi toilet"] = true,
+	["burguro and fryuro"] = true,
+	["cerberus"] = true,
+	["la secret"] = true,
+	["hydra dragon cannelloni"] = true,
+	["dragon gingerine"] = true,
+	["jelly moby"] = true,
+	["spaguet tualet"] = true,
+	["boppin bunny"] = true,
+	["67"] = true,
+	["festive 67"] = true,
+	["reinito sleighto"] = true,
+	["griffin"] = true,
+	["hydra bunny"] = true,
+	["los 67"] = true,
+	["los 25"] = true,
+	["fragola lala"] = true,
+	["gym bros"] = true,
+	["garama and madung"] = true,
+	["los tangzitos"] = true,
+	["john doe"] = true,
+	["love love bear"] = true,
+	["w or l"] = true,
+	["cooki and milk"] = true,
+	["la supreme conbinasion"] = true,
+	["la grande"] = true,
+	["signore carapace"] = true,
+	["antonio"] = true,
+	["moby bros"] = true,
+	["arcadragon"] = true,
+	["elefanto frigo"] = true,
+	["celestial pegasus"] = true,
+	["bumbatron"] = true,
+	["kalika bros"] = true,
+	["foxini lanterini"] = true,
+	["esok sekolah"] = true,
+	["la ginger sekolah"] = true,
+	["los chicleteiras"] = true,
+	["los spaguets"] = true,
+	["dj panda"] = true,
+	["money money puggy"] = true,
+	["strawberrita"] = true,
+	["los burritos"] = true
+}
+
+-- Whitelist de Mutações
+local validMutations = {
+	["normal"] = true,
+	["gold"] = true,
+	["diamond"] = true,
+	["rainbow"] = true,
+	["galaxy"] = true,
+	["candy"] = true,
+	["radioactive"] = true,
+	["cursed"] = true,
+	["divine"] = true,
+	["lava"] = true,
+	["bloodrot"] = true
+}
+
+local function processSpawn()
+	local rawName = spawnerInput.Text
+	local cleanName = rawName:lower():gsub("^%s*(.-)%s*$", "%1")
+
+	local rawMut = normalInput.Text
+	local cleanMut = rawMut:lower():gsub("^%s*(.-)%s*$", "%1")
+	if cleanMut == "" then cleanMut = "normal" end
+
+	local traitsVal = (traitsInput.Text == "" or traitsInput.Text == "Traits (0)") and "none" or traitsInput.Text
+
+	if rawName == "" or rawName == "Brainrot name or alias" then
+		spawnerSub.Text = "Made By LarpOnTop"
+		spawnerSub.TextColor3 = Color3.fromRGB(130, 135, 145)
+		return
+	end
+
+	-- Valida o Brainrot
+	if not validBrainrots[cleanName] then
+		spawnerSub.Text = "❌ Brainrot (" .. rawName .. ") Not Found"
+		spawnerSub.TextColor3 = Color3.fromRGB(240, 70, 70)
+		return
+	end
+
+	-- Valida a Mutação
+	if not validMutations[cleanMut] then
+		spawnerSub.Text = "❌ Mutation (" .. rawMut .. ") Not Found"
+		spawnerSub.TextColor3 = Color3.fromRGB(240, 70, 70)
+		return
+	end
+
+	-- Sucesso ao clicar em SPAWN
+	local prefix = isLoopOn and "✅ Loop ON | " or "✅ "
+	spawnerSub.Text = prefix .. "SpawnBrainrot [" .. rawName .. " | " .. rawMut .. " | " .. traitsVal .. "]"
+	spawnerSub.TextColor3 = Color3.fromRGB(130, 225, 90)
+end
+
+loopBtn.MouseButton1Click:Connect(function()
+	isLoopOn = not isLoopOn
+	if isLoopOn then
+		loopBtn.Text = "Loop: ON"
+		loopBtn.BackgroundColor3 = Color3.fromRGB(50, 110, 75)
+		loopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		loopStroke.Color = Color3.fromRGB(70, 140, 95)
+	else
+		loopBtn.Text = "Loop: OFF"
+		loopBtn.BackgroundColor3 = Color3.fromRGB(38, 45, 65)
+		loopBtn.TextColor3 = Color3.fromRGB(210, 215, 225)
+		loopStroke.Color = Color3.fromRGB(60, 70, 95)
+	end
+end)
+
+-- A validação só acontece ao apertar SPAWN
+spawnBtn.MouseButton1Click:Connect(function()
+	processSpawn()
+end)
+
+---------------------------------------------------------
+-- CONSTRUÇÃO DA GRADE DE BOTÕES PRINCIPAL
+---------------------------------------------------------
+local buttonsData = {
+	{text = "🧠 Brainrot Spawner", color = Color3.fromRGB(115, 60, 230), isTextBox = false},
+	{text = "🍓 Add Brainrot", color = Color3.fromRGB(60, 130, 220), isTextBox = false},
+	{text = "🎉 Execute Event", color = Color3.fromRGB(195, 35, 45), isTextBox = false},
+	{text = "🍀 Lucky Block Spawner", color = Color3.fromRGB(55, 175, 65), isTextBox = false},
+	{text = "⚡ Execute All Events", color = Color3.fromRGB(225, 130, 20), isTextBox = false},
+	{text = "🛑 Stop Event", color = Color3.fromRGB(205, 35, 40), isTextBox = false},
+	{text = "✅ verified", color = Color3.fromRGB(45, 140, 65), isTextBox = false},
+	{text = "🧬 Brainrot Morph", color = Color3.fromRGB(90, 45, 200), isTextBox = false},
+	{placeholder = "Set Money", isTextBox = true},
+	{text = "💰 Set Money", color = Color3.fromRGB(40, 155, 85), isTextBox = false},
+	{placeholder = "Set Rebirth", isTextBox = true},
+	{text = "🔄 Set Rebirth", color = Color3.fromRGB(55, 85, 205), isTextBox = false}
+}
+
+for orderIndex, data in ipairs(buttonsData) do
+	if data.isTextBox then
+		local box = Instance.new("TextBox")
+		box.Name = "TextBox_" .. orderIndex
+		box.LayoutOrder = orderIndex
+		box.PlaceholderText = data.placeholder
+		box.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
+		box.Text = ""
+		box.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+		box.TextColor3 = Color3.fromRGB(255, 255, 255)
+		box.TextSize = 12
+		box.Font = MAIN_FONT
+		box.ClearTextOnFocus = false
+		box.Parent = gridFrame
+
+		local boxCorner = Instance.new("UICorner")
+		boxCorner.CornerRadius = UDim.new(0, 8)
+		boxCorner.Parent = box
+
+		local boxStroke = Instance.new("UIStroke")
+		boxStroke.Color = Color3.fromRGB(60, 60, 70)
+		boxStroke.Thickness = 1
+		boxStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		boxStroke.Parent = box
+	else
+		local btn = Instance.new("TextButton")
+		btn.Name = "Button_" .. orderIndex
+		btn.LayoutOrder = orderIndex
+		btn.Text = data.text
+		btn.BackgroundColor3 = data.color
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.TextSize = 11
+		btn.Font = MAIN_FONT
+		btn.Parent = gridFrame
+
+		local btnCorner = Instance.new("UICorner")
+		btnCorner.CornerRadius = UDim.new(0, 8)
+		btnCorner.Parent = btn
+
+		if data.text == "🧠 Brainrot Spawner" then
+			btn.MouseButton1Click:Connect(function()
+				spawnerFrame.Visible = not spawnerFrame.Visible
+			end)
+		end
+	end
+end
+
+---------------------------------------------------------
+-- CARREGAMENTO DA BARRA ROXA (ETAPAS EQUILIBRADAS)
+---------------------------------------------------------
+task.spawn(function()
+	task.wait(0.5)
+
+	-- fillTime: tempo que leva deslizando (2 segundos)
+	-- pauseTime: pausa entre cada etapa (3 segundos)
+	local steps = {
+		{target = 0.25, fillTime = 2.0, pauseTime = 3.0},
+		{target = 0.55, fillTime = 2.0, pauseTime = 3.0},
+		{target = 0.80, fillTime = 2.0, pauseTime = 3.0},
+		{target = 1.00, fillTime = 1.8, pauseTime = 1.0}
+	}
+
+	for _, step in ipairs(steps) do
+		local tween = TweenService:Create(
+			barFill,
+			TweenInfo.new(step.fillTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{Size = UDim2.new(step.target, 0, 1, 0)}
+		)
+		tween:Play()
+		tween.Completed:Wait()
+
+		if step.pauseTime > 0 then
+			task.wait(step.pauseTime)
+		end
+	end
+
+	loadingFrame.Visible = false
+	adminFrame.Visible = true
+	toggleButton.Visible = true
+end)
